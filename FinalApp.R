@@ -129,7 +129,7 @@ ui <- fluidPage(
                 id = "slope_test_info",
                 class = "collapse instruction-box",
                 strong("About the Slope-Based Trend Test ℹ️:"),
-                p("This test uses segmented regression to evaluate how the popularity of a name changes before and after a specific event year."),
+                p("This test uses segmented regression on ten years before and after a given year to evaluate how the popularity of a name changes before and after a specific event year."),
                 tags$ul(
                   tags$li(strong("Immediate Level Change (β₂): "), "Was there an instant jump or drop the year after the event?"),
                   tags$li(strong("Slope Change (β₃): "), "Did the long-term rate of growth increase or decrease after the event?")
@@ -184,7 +184,7 @@ ui <- fluidPage(
                 id = "slope_test_info",
                 class = "collapse instruction-box",
                 strong("About the Slope-Based Trend Test ℹ️:"),
-                p("This test uses segmented regression to evaluate how the popularity of a name changes before and after a specific event year."),
+                p("This test uses segmented regression on ten years before and after a given year to evaluate how the popularity of a name changes before and after a specific event year."),
                 tags$ul(
                   tags$li(strong("Immediate Level Change (β₂): "), "Was there an instant jump or drop the year after the event?"),
                   tags$li(strong("Slope Change (β₃): "), "Did the long-term rate of growth increase or decrease after the event?")
@@ -237,11 +237,17 @@ ui <- fluidPage(
 server <- function(input, output, session) {
   
   # ---------------- Segmented Regression Helper ----------------
-  segmented_test <- function(df, event_year) {
+  segmented_test <- function(df, event_year, window = 10) {
+    # Limit data to a window around the event year
+    df <- df %>% 
+      filter(year >= event_year - window,
+             year <= event_year + window) %>%
+      arrange(year)
+    
+    # Need enough points to run regression
     if (nrow(df) < 10) return(NULL)
     
-    df <- df %>% arrange(year)
-    
+    # Build segmented regression variables
     df <- df %>% mutate(
       time = year,
       after = ifelse(year > event_year, 1, 0),
@@ -250,7 +256,6 @@ server <- function(input, output, session) {
     
     model <- lm(percent ~ time + after + time_after, data = df)
     sm <- summary(model)
-    
     coef <- sm$coefficients
     
     list(
@@ -260,6 +265,8 @@ server <- function(input, output, session) {
       p_slope = coef["time_after", "Pr(>|t|)"]
     )
   }
+  
+  
   
   # ---------------- Gender UI ----------------
   create_gender_ui <- function(names_input, prefix) {
@@ -503,7 +510,7 @@ server <- function(input, output, session) {
   # ---------------- Highlight Tab ----------------
   highlight_info <- list(
     "Elsa"="Release of Disney's *Frozen*.",
-    "Khaleesi"="Popularity of Daenerys 'Khaleesi'.",
+    "Khaleesi"="Popularity of Daenerys 'Khaleesi' from *Game of Thrones*.",
     "Ariel"="Release of Disney's *The Little Mermaid*.",
     "Barack"="Obama announces his run for president.",
     "Hermione"="*Harry Potter* increases in popularity.",
@@ -602,3 +609,4 @@ server <- function(input, output, session) {
 
 # ---------------- Run App ----------------
 shinyApp(ui, server)
+
